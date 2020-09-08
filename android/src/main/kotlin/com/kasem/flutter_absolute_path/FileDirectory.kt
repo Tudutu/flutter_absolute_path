@@ -8,8 +8,13 @@ import android.os.Build
 import android.os.Environment
 import android.provider.DocumentsContract
 import android.provider.MediaStore
-import java.io.*
+import java.io.File
+import java.io.FileOutputStream
 import java.util.*
+import android.webkit.MimeTypeMap
+import android.content.ContentResolver
+import android.media.ThumbnailUtils
+import android.util.Log
 
 
 object FileDirectory {
@@ -87,7 +92,35 @@ object FileDirectory {
                               selectionArgs: Array<String>?): String? {
 
         if (uri.authority != null) {
-            val targetFile = File(context.cacheDir, "IMG_${Date().time}.png")
+            var cursor: Cursor? = null
+            val column = "_display_name"
+            val projection = arrayOf(column)
+            var targetFile: File? = null
+            try {
+                cursor = context.contentResolver.query(uri, projection, selection, selectionArgs, null)
+                if (cursor != null && cursor.moveToFirst()) {
+                    val columnIndex = cursor.getColumnIndexOrThrow(column)
+                    val fileName = cursor.getString(columnIndex)
+                    Log.i("FileDirectory", "File name: $fileName")
+                    targetFile = File(context.cacheDir, fileName)
+                }
+            } finally {
+                cursor?.close()
+            }
+
+            if (targetFile == null) {
+                val mimeType = context.contentResolver.getType(uri)
+                val prefix = with(mimeType ?: "") {
+                    when {
+                        startsWith("image") -> "IMG"
+                        startsWith("video") -> "VID"
+                        else -> "FILE"
+                    }
+                }
+                val type = MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType)
+                targetFile = File(context.cacheDir, "${prefix}_${Date().time}.$type")
+            }
+
             context.contentResolver.openInputStream(uri)?.use { input ->
                 FileOutputStream(targetFile).use { fileOut ->
                     input.copyTo(fileOut)
@@ -103,8 +136,8 @@ object FileDirectory {
         try {
             cursor = context.contentResolver.query(uri, projection, selection, selectionArgs, null)
             if (cursor != null && cursor.moveToFirst()) {
-                val column_index = cursor.getColumnIndexOrThrow(column)
-                return cursor.getString(column_index)
+                val columnIndex = cursor.getColumnIndexOrThrow(column)
+                return cursor.getString(columnIndex)
             }
         } finally {
             cursor?.close()
