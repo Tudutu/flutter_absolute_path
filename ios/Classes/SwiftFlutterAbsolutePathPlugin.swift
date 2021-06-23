@@ -12,7 +12,7 @@ public class SwiftFlutterAbsolutePathPlugin: NSObject, FlutterPlugin {
     
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         if(call.method == "getAbsolutePath"){
-            guard let uri = (call.arguments as? Dictionary<String, String>)?["uri"] else {
+            guard let uri = (call.arguments as? Dictionary<String,String>)?["uri"] else {
                 result(FlutterError(code: "assertion_error", message: "uri is required.", details: nil))
                 return
             }
