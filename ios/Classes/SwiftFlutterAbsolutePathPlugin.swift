@@ -16,21 +16,38 @@ public class SwiftFlutterAbsolutePathPlugin: NSObject, FlutterPlugin {
                 result(FlutterError(code: "assertion_error", message: "uri is required.", details: nil))
                 return
             }
-            if (uri.starts(with: "file://") || uri.starts(with: "/var/mobile/Media") || uri.starts(with: "/private/var/mobile")) {
-                result( uri.replacingOccurrences(of: "file://", with: ""))
-                return
-            }
-            let phAsset = PHAsset.fetchAssets(withLocalIdentifiers: [uri], options: .none).firstObject
-            if(phAsset == nil) {
+            guard let path = getAbsolutePath(for: uri) else {
                 result(nil)
                 return
             }
-            let editingOptions = PHContentEditingInputRequestOptions()
-            editingOptions.isNetworkAccessAllowed = true
-            phAsset!.requestContentEditingInput(with: editingOptions) { (input, _) in
-                let url = input?.fullSizeImageURL?.absoluteString.replacingOccurrences(of: "file://", with: "")
-                result(url)
-            }
+            result(path)
         }
+    }
+
+    private func getAbsolutePath(for identifier: String) -> String? {
+        if (identifier.starts(with: "file://") || identifier.starts(with: "/var/mobile/Media") || identifier.starts(with: "/private/var/mobile")) {
+            return identifier.replacingOccurrences(of: "file://", with: "")
+        }
+        let phAsset = PHAsset.fetchAssets(withLocalIdentifiers: [identifier], options: .none).firstObject
+        if(phAsset == nil) {
+            return nil
+        }
+        let (url, _) = getFullSizeImageURLAndOrientation(for: phAsset!)
+        return url
+    }
+    
+    private func getFullSizeImageURLAndOrientation(for asset: PHAsset)-> (String?, Int) {
+        var url: String? = nil
+        var orientation: Int = 0
+        let semaphore = DispatchSemaphore(value: 0)
+        let options2 = PHContentEditingInputRequestOptions()
+        options2.isNetworkAccessAllowed = true
+        asset.requestContentEditingInput(with: options2){(input, info) in
+            orientation = Int(input?.fullSizeImageOrientation ?? 0)
+            url = input?.fullSizeImageURL?.path
+            semaphore.signal()
+        }
+        semaphore.wait()
+        return (url, orientation)
     }
 }
