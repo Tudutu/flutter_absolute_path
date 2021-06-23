@@ -16,10 +16,11 @@ public class SwiftFlutterAbsolutePathPlugin: NSObject, FlutterPlugin {
                 result(FlutterError(code: "assertion_error", message: "uri is required.", details: nil))
                 return
             }
-            
-            let path = getAbsolutePath(for: uri)
+            guard let path = getAbsolutePath(for: uri) else {
+                result(nil)
+                return
+            }
             result(path)
-            return
         }
     }
 
